@@ -1,33 +1,49 @@
-# Remove Thumbnails Cleaner
+# WordPress Thumbnail Manager
+
 ## Description
 
-This plugin helps reduce file bloat in WordPress by:
+This WordPress plugin helps manage image thumbnails by:
 
-- Disabling WordPress from generating multiple image sizes (thumbnails) on upload.
-- Setting all default image dimensions to 0.
-- Providing an admin interface to safely delete old thumbnail files from `wp-content/uploads`.
-
-Useful for large sites with thousands of posts/images that are hitting hosting limits due to file count.
+- Providing fine-grained control over which thumbnail sizes are generated on upload
+- Offering a clean interface to review and delete existing thumbnail files
+- Showing detailed statistics about thumbnail usage and disk space
+- Organizing thumbnails into logical groups for easier management
 
 ## Features
 
-- Prevents WordPress from generating `-150x150`, `-300x200`, etc.
-- Cleans up existing thumbnails without touching original images.
-- Adds a simple admin page under the name “Thumbnail Cleaner”.
-- Safe, permission-controlled, with CSRF protection.
+- Visual dashboard showing thumbnail statistics by size groups
+- Safe deletion of selected thumbnail sizes
+- Detailed size settings management interface
+- Groups thumbnails by common use cases (avatars, mobile, desktop, etc.)
+- Compatible with WooCommerce, Divi, and Elementor thumbnail sizes
+- Secure, permission-controlled interface with CSRF protection
 
 ## Installation
 
-1. Upload the plugin folder to `/wp-content/plugins/remove-thumbnails-cleaner/`
-2. Activate the plugin via the WordPress admin panel.
-3. Go to `Thumbnail Cleaner` in the WordPress admin menu.
-4. Click the “Delete Thumbnails Now” button to remove old thumbnails.
+1. Upload the plugin folder to `/wp-content/plugins/thumbnail-manager/`
+2. Activate the plugin through the WordPress admin panel
+3. Go to `Thumbnail Manager` in the WordPress admin menu
+4. Choose which thumbnail sizes to keep or remove
+
+## Usage
+
+### Cleanup Interface
+- View all thumbnail sizes grouped by their usage type
+- See file counts and disk space usage for each size
+- Selectively delete specific thumbnail dimensions
+- Expandable/collapsible groups for better organization
+
+### Settings Interface
+- Enable/disable specific thumbnail sizes
+- View current dimensions for each thumbnail type
+- See which sizes are actively being generated
+- Manage WordPress core and theme-specific sizes
 
 ## Warning
 
-- This tool only removes files matching WordPress thumbnail patterns (e.g. `-150x150.jpg`).
-- It does **not** delete original uploads.
-- Always back up your uploads directory before running large batch deletions.
+- Always backup your uploads directory before performing bulk deletions
+- The plugin only removes thumbnail-sized images, not original uploads
+- Some themes may require specific thumbnail sizes to function properly
 
 ## License
 
