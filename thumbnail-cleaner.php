@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: Remove Thumbnails Cleaner
+ * Plugin Name: Thumbnails Cleaner
  * Description: Disables WordPress from generating extra image sizes (thumbnails) and provides an admin tool to clean up existing old thumbnails safely.
  * Version: 1.1
  * Author: Steven Hill
