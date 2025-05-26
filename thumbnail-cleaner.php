@@ -42,6 +42,16 @@ function rtc_thumbnail_cleaner_page() {
         wp_die(__('You do not have permission to access this page.'));
     }
 
+    // Show preview count
+    $preview = rtc_count_thumbnails();
+    echo '<div class="notice notice-info"><p>';
+    if ($preview['count'] > 0) {
+        echo '<strong>Found ' . $preview['count'] . ' thumbnail files using ' . size_format($preview['size']) . ' of space.</strong>';
+    } else {
+        echo '<strong>No thumbnail files found.</strong>';
+    }
+    echo '</p></div>';
+
     if (isset($_POST['rtc_delete_thumbs']) && check_admin_referer('rtc_delete_thumbs_action')) {
         $result = rtc_delete_thumbnails();
         $deleted_files = $result['files'];
@@ -60,22 +70,49 @@ function rtc_thumbnail_cleaner_page() {
         }
     }
 
-    echo '<form method="post">';
-    wp_nonce_field('rtc_delete_thumbs_action');
-    submit_button('Delete Thumbnails Now', 'primary', 'rtc_delete_thumbs');
-    echo '</form>';
+    // Only show the form if there are thumbnails to delete
+    if ($preview['count'] > 0) {
+        echo '<form method="post">';
+        wp_nonce_field('rtc_delete_thumbs_action');
+        submit_button('Delete Thumbnails Now', 'primary', 'rtc_delete_thumbs');
+        echo '</form>';
 
-    // Warning message and script
-    echo '<div class="notice notice-warning"><p><strong>Warning:</strong> This action cannot be undone. Please backup your media files before proceeding.</p></div>';
-    echo '<script>
-    document.querySelector("form").addEventListener("submit", function(e) {
-        if(!confirm("Are you sure you want to delete all thumbnail files? This cannot be undone.")) {
-            e.preventDefault();
-        }
-    });
-    </script>';
+        echo '<div class="notice notice-warning"><p><strong>Warning:</strong> This action cannot be undone. Please backup your media files before proceeding.</p></div>';
+        echo '<script>
+        document.querySelector("form").addEventListener("submit", function(e) {
+            if(!confirm("Are you sure you want to delete ' . $preview['count'] . ' thumbnail files? This cannot be undone.")) {
+                e.preventDefault();
+            }
+        });
+        </script>';
+    }
 
     echo '</div>';
+}
+
+// Add this function before rtc_delete_thumbnails()
+function rtc_count_thumbnails() {
+    $upload_dir = wp_upload_dir();
+    $base_dir = $upload_dir['basedir'];
+    $count = 0;
+    $total_size = 0;
+
+    if (!is_dir($base_dir)) return ['count' => 0, 'size' => 0];
+
+    $dir = new RecursiveDirectoryIterator($base_dir, RecursiveDirectoryIterator::SKIP_DOTS);
+    $iterator = new RecursiveIteratorIterator($dir);
+
+    foreach ($iterator as $file) {
+        if (!$file->isFile()) continue;
+
+        $filename = $file->getFilename();
+        if (preg_match('/-\d+x\d+\.(jpg|jpeg|png|gif|webp)$/i', $filename)) {
+            $count++;
+            $total_size += filesize($file->getPathname());
+        }
+    }
+
+    return ['count' => $count, 'size' => $total_size];
 }
 
 // Modify the rtc_delete_thumbnails() function to track space saved
@@ -105,8 +142,10 @@ function rtc_delete_thumbnails() {
         if (!$file->isFile()) continue;
 
         $filename = $file->getFilename();
-        $filepath = $file->getPathname();
-
+        // Skip essential thumbnail sizes
+        if (preg_match('/-(?:150x150|300x300)\.(jpg|jpeg|png|gif|webp)$/i', $filename)) {
+            continue;
+        }
         if (preg_match('/-\d+x\d+\.(jpg|jpeg|png|gif|webp)$/i', $filename)) {
             if (is_writable($filepath)) {
                 $total_size += filesize($filepath);
