@@ -1,9 +1,4 @@
 # Remove Thumbnails Cleaner
-
-**Version:** 1.1  
-**Author:** Steven Hill
-**License:** GPLv2 or later  
-
 ## Description
 
 This plugin helps reduce file bloat in WordPress by:
