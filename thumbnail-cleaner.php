@@ -7,27 +7,21 @@
  * License: GPLv2 or later
  */
 
-// ========== PART 1: Disable WordPress image size generation ==========
+// ===== 1. Disable Default Thumbnail Sizes =====
 
-// Disable additional image sizes
-function rtc_remove_default_image_sizes($sizes) {
+add_filter('intermediate_image_sizes_advanced', function($sizes) {
     unset($sizes['thumbnail'], $sizes['medium'], $sizes['large']);
     return $sizes;
-}
-add_filter('intermediate_image_sizes_advanced', 'rtc_remove_default_image_sizes');
+});
 
-// Set all size dimensions to 0 on activation
-function rtc_set_image_size_options() {
+register_activation_hook(__FILE__, function () {
     update_option('thumbnail_size_w', 0);
     update_option('thumbnail_size_h', 0);
     update_option('medium_size_w', 0);
     update_option('medium_size_h', 0);
     update_option('large_size_w', 0);
     update_option('large_size_h', 0);
-}
-register_activation_hook(__FILE__, 'rtc_set_image_size_options');
-
-// ========== PART 2: Admin UI for thumbnail cleanup ==========
+});
 
 add_action('admin_menu', function () {
     add_menu_page(
@@ -45,29 +39,64 @@ function rtc_thumbnail_cleaner_page() {
     echo '<div class="wrap"><h1>Remove Old Thumbnails</h1>';
 
     if (!current_user_can('manage_options')) {
-        wp_die(__('You do not have sufficient permissions to access this page.'));
+        wp_die(__('You do not have permission to access this page.'));
     }
 
     if (isset($_POST['rtc_delete_thumbs']) && check_admin_referer('rtc_delete_thumbs_action')) {
-        $deleted = rtc_delete_thumbnails();
-        echo '<div class="notice notice-success"><p>' . esc_html($deleted) . ' thumbnail files were deleted.</p></div>';
+        $result = rtc_delete_thumbnails();
+        $deleted_files = $result['files'];
+        $total_size = $result['size'];
+        $count = count($deleted_files);
+        echo '<div class="notice notice-success"><p><strong>' . $count . ' thumbnail file(s) deleted, freeing up ' . size_format($total_size) . ' of space.</strong></p></div>';
+
+        if ($count > 0) {
+            echo '<h2>Deleted Files:</h2><ul style="max-height:300px;overflow:auto;font-family:monospace;">';
+            foreach ($deleted_files as $file) {
+                echo '<li>' . esc_html($file) . '</li>';
+            }
+            echo '</ul>';
+        } else {
+            echo '<div class="notice notice-warning"><p>No thumbnails found matching the deletion pattern.</p></div>';
+        }
     }
 
     echo '<form method="post">';
     wp_nonce_field('rtc_delete_thumbs_action');
-    echo '<p>This will search your <code>wp-content/uploads</code> directory and delete image files that match the typical WordPress thumbnail pattern (e.g., <code>-150x150.jpg</code>, <code>-768x1024.png</code>). Original images will NOT be deleted.</p>';
-    submit_button('Delete Thumbnails Now');
-    echo '</form></div>';
+    submit_button('Delete Thumbnails Now', 'primary', 'rtc_delete_thumbs');
+    echo '</form>';
+
+    // Warning message and script
+    echo '<div class="notice notice-warning"><p><strong>Warning:</strong> This action cannot be undone. Please backup your media files before proceeding.</p></div>';
+    echo '<script>
+    document.querySelector("form").addEventListener("submit", function(e) {
+        if(!confirm("Are you sure you want to delete all thumbnail files? This cannot be undone.")) {
+            e.preventDefault();
+        }
+    });
+    </script>';
+
+    echo '</div>';
 }
 
-// ========== PART 3: Delete existing thumbnail files ==========
-
+// Modify the rtc_delete_thumbnails() function to track space saved
 function rtc_delete_thumbnails() {
     $upload_dir = wp_upload_dir();
     $base_dir = $upload_dir['basedir'];
-    $count = 0;
+    $deleted = [];
+    $total_size = 0;
+    $log_file = $base_dir . '/thumbnails-deleted.log';
 
-    if (!is_dir($base_dir)) return 0;
+    // Add to the beginning of rtc_delete_thumbnails()
+    if (!function_exists('wp_upload_dir')) {
+        return ['files' => [], 'size' => 0, 'error' => 'WordPress upload functions not available'];
+    }
+
+    // Add error checking for directory permissions
+    if (!is_writable($base_dir)) {
+        return ['files' => [], 'size' => 0, 'error' => 'Upload directory is not writable'];
+    }
+
+    if (!is_dir($base_dir)) return ['files' => $deleted, 'size' => 0];
 
     $dir = new RecursiveDirectoryIterator($base_dir, RecursiveDirectoryIterator::SKIP_DOTS);
     $iterator = new RecursiveIteratorIterator($dir);
@@ -78,14 +107,21 @@ function rtc_delete_thumbnails() {
         $filename = $file->getFilename();
         $filepath = $file->getPathname();
 
-        // Match common WordPress thumbnail pattern
         if (preg_match('/-\d+x\d+\.(jpg|jpeg|png|gif|webp)$/i', $filename)) {
             if (is_writable($filepath)) {
+                $total_size += filesize($filepath);
                 @unlink($filepath);
-                $count++;
+                $relative_path = str_replace($base_dir, '', $filepath);
+                $deleted[] = $relative_path;
             }
         }
     }
 
-    return $count;
+    // Log to file
+    if (!empty($deleted)) {
+        $log_entry = date('[Y-m-d H:i:s]') . " Deleted thumbnails:\n" . implode("\n", $deleted) . "\n\n";
+        file_put_contents($log_file, $log_entry, FILE_APPEND);
+    }
+
+    return ['files' => $deleted, 'size' => $total_size];
 }
